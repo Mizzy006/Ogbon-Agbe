@@ -1,18 +1,27 @@
 from fastapi import FastAPI
-from app.firebase import db
+from app.api.routes.farmguard import router as farmguard_router
 
-app = FastAPI()
+app = FastAPI(title="Ọgbọ́nÀgbẹ̀ API")
+
+app.include_router(
+    farmguard_router,
+    prefix="/api"
+)
+
 
 @app.get("/")
 async def root():
-    return {"message": "Ọgbọ́nÀgbẹ̀ backend running"}
+    return {
+        "message": "Ọgbọ́nÀgbẹ̀ backend running"
+    }
 
-@app.get("/test-firestore")
-async def test_firestore():
-    doc_ref = db.collection("test").document("hello")
+    from fastapi import FastAPI
+from app.api.routes import farmguard
 
-    doc_ref.set({
-        "message": "Firestore connected successfully"
-    })
+app = FastAPI()
 
-    return {"status": "success"}                 
+app.include_router(
+    farmguard.router,
+    prefix="/farmguard",
+    tags=["FarmGuard"]
+)
