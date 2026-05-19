@@ -52,7 +52,7 @@ export default function AgbeVoice({ onBack }) {
     window.speechSynthesis.cancel();
     
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.rate = 0.8; // Slowed down slightly to help local browser pacing
+    utterance.rate = 0.8; 
 
     utterance.onend = () => {
       setMessages(prev => prev.map(m => m.id === msgId ? { ...m, isPlaying: false } : m));
@@ -65,16 +65,13 @@ export default function AgbeVoice({ onBack }) {
     window.speechSynthesis.speak(utterance);
   };
 
-  // Action: Handles Text Submission or Voice Note Submission
   const handleSendMessage = () => {
     let userText = "";
 
     if (isRecording) {
-      // User tapped send while recording a voice note
       userText = `🎤 Voice Note (${formatTime(recordingTime)})`;
       setIsRecording(false);
     } else if (inputText.trim()) {
-      // User sent standard text
       userText = inputText;
       setInputText("");
     } else {
@@ -83,7 +80,6 @@ export default function AgbeVoice({ onBack }) {
 
     const userMsg = { id: Date.now(), role: 'user', text: userText, isPlaying: false };
     
-    // Simulated backend response mimicking Ibrahim's deep Yoruba persona prompts
     const mockAiMsg = {
       id: Date.now() + 1,
       role: 'ai',
@@ -99,43 +95,48 @@ export default function AgbeVoice({ onBack }) {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-osun-cream dark:bg-osun-bg-dark font-sans transition-colors duration-300">
+    <div className="h-screen flex flex-col bg-osun-cream dark:bg-osun-bg-dark font-sans transition-colors duration-300 w-full max-w-full overflow-hidden">
       {/* Header Panel */}
-      <header className="p-6 border-b border-gray-100 dark:border-white/5 flex items-center justify-between bg-white dark:bg-osun-card-dark">
-        <div className="flex items-center gap-4">
-          <button onClick={() => { if (window.speechSynthesis) window.speechSynthesis.cancel(); onBack(); }} className="text-osun-green-mid">
+      <header className="p-4 sm:p-6 border-b border-gray-100 dark:border-white/5 flex items-center justify-between bg-white dark:bg-osun-card-dark w-full shrink-0">
+        <div className="flex items-center gap-3 sm:gap-4">
+          {/* Responsive interaction tracking cursor pointer */}
+          <button 
+            onClick={() => { if (window.speechSynthesis) window.speechSynthesis.cancel(); onBack(); }} 
+            className="text-osun-green-mid cursor-pointer hover:opacity-70 transition-opacity p-1 focus:outline-none"
+          >
             <ChevronLeft size={24} />
           </button>
           <div>
-            <h2 className="font-serif text-2xl font-bold dark:text-white">Àgbẹ̀ Voice</h2>
-            <p className="text-[#C8860A] font-bold text-[10px] uppercase tracking-widest">Ohùn Àgbẹ̀ · AI Advisor</p>
+            <h2 className="font-serif text-xl sm:text-2xl font-bold dark:text-white">Àgbẹ̀ Voice</h2>
+            <p className="text-[#C8860A] font-bold text-[9px] sm:text-[10px] uppercase tracking-widest">Ohùn Àgbẹ̀ · AI Advisor</p>
           </div>
         </div>
-        <span className="text-[10px] font-mono bg-[#C8860A]/10 text-[#C8860A] px-3 py-1 rounded-full font-bold">
+        <span className="text-[9px] sm:text-[10px] font-mono bg-[#C8860A]/10 text-[#C8860A] px-2.5 sm:px-3 py-1 rounded-full font-bold whitespace-nowrap">
           AV-03: Chat Playback
         </span>
       </header>
 
       {/* Chat Space */}
-      <main className="flex-1 overflow-y-auto p-6 space-y-6">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6 w-full max-w-4xl mx-auto">
         {messages.map((msg) => (
-          <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-sm ${msg.role === 'ai' ? 'bg-[#C8860A]' : 'bg-osun-green-mid'}`}>
-              {msg.role === 'ai' ? <Mic size={16} className="text-osun-green-deep" /> : <User size={16} className="text-white" />}
+          <div key={msg.id} className={`flex gap-2 sm:gap-3 w-full ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+            <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shrink-0 shadow-sm ${msg.role === 'ai' ? 'bg-[#C8860A]' : 'bg-osun-green-mid'}`}>
+              {msg.role === 'ai' ? <Mic size={14} className="text-osun-green-deep" /> : <User size={14} className="text-white" />}
             </div>
 
-            <div className={`max-w-[80%] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 ${msg.role === 'ai' ? 'bg-white dark:bg-osun-card-dark rounded-tl-none text-gray-800 dark:text-gray-100' : 'bg-osun-green-mid text-white rounded-tr-none'}`}>
-              <p className="text-sm leading-relaxed">{msg.text}</p>
+            {/* Responsive bubble text boundaries max-w-[85%] on mobile grids */}
+            <div className={`max-w-[85%] sm:max-w-[75%] p-3.5 sm:p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 ${msg.role === 'ai' ? 'bg-white dark:bg-osun-card-dark rounded-tl-none text-gray-800 dark:text-gray-100' : 'bg-osun-green-mid text-white rounded-tr-none'}`}>
+              <p className="text-xs sm:text-sm leading-relaxed break-words">{msg.text}</p>
               
               {msg.role === 'ai' && (
                 <div className="mt-3 flex flex-col gap-1">
                   <button 
                     onClick={() => handleReadAloud(msg.id, msg.text)}
-                    className={`flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider py-1.5 px-3 rounded-xl transition-all self-start ${msg.isPlaying ? 'bg-red-500/10 text-red-500 animate-pulse' : 'bg-[#C8860A]/10 text-[#C8860A]'}`}
+                    className={`flex items-center gap-2 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider py-1.5 px-3 rounded-xl transition-all self-start cursor-pointer focus:outline-none ${msg.isPlaying ? 'bg-red-500/10 text-red-500 animate-pulse' : 'bg-[#C8860A]/10 text-[#C8860A] hover:bg-[#C8860A]/20'}`}
                   >
-                    {msg.isPlaying ? <><VolumeX size={14} /> Dúró (Stop)</> : <><Volume2 size={14} /> Gbọ́ Ohùn (Listen)</>}
+                    {msg.isPlaying ? <><VolumeX size={12} /> Dúró (Stop)</> : <><Volume2 size={12} /> Gbọ́ Ohùn (Listen)</>}
                   </button>
-                  <p className="text-[9px] text-gray-400 italic mt-1 font-mono">*Local synthesis preview. Cloud TTS engine integrates next.</p>
+                  <p className="text-[8px] sm:text-[9px] text-gray-400 italic mt-1 font-mono">*Local synthesis preview. Cloud TTS engine integrates next.</p>
                 </div>
               )}
             </div>
@@ -144,17 +145,20 @@ export default function AgbeVoice({ onBack }) {
       </main>
 
       {/* Input Tray Section */}
-      <footer className="p-6 bg-white dark:bg-osun-card-dark border-t border-gray-100 dark:border-white/5">
-        <div className="max-w-4xl mx-auto flex items-center gap-3">
+      <footer className="p-4 sm:p-6 bg-white dark:bg-osun-card-dark border-t border-gray-100 dark:border-white/5 w-full shrink-0">
+        <div className="max-w-4xl mx-auto flex items-center gap-2 sm:gap-3">
           
-          <div className="flex-1 bg-osun-cream dark:bg-osun-bg-dark rounded-full px-5 py-2 flex items-center border border-gray-100 dark:border-white/5 min-h-[56px]">
+          <div className="flex-1 bg-osun-cream dark:bg-osun-bg-dark rounded-full px-4 sm:px-5 py-1.5 sm:py-2 flex items-center border border-gray-100 dark:border-white/5 min-h-[48px] sm:min-h-[56px] overflow-hidden">
             {isRecording ? (
-              <div className="flex items-center gap-3 w-full animate-pulse">
-                <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_red]"></div>
-                <span className="text-sm font-mono font-bold text-red-500">{formatTime(recordingTime)}</span>
-                <span className="text-xs text-gray-400 flex-1 ml-2 font-medium">Ẹ kọ́ ohùn sílẹ̀... (Recording audio)</span>
-                <button onClick={handleCancelRecording} className="text-gray-400 hover:text-red-500 transition-colors">
-                  <Trash2 size={18} />
+              <div className="flex items-center gap-2 sm:gap-3 w-full animate-pulse">
+                <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_red] shrink-0"></div>
+                <span className="text-xs sm:text-sm font-mono font-bold text-red-500 shrink-0">{formatTime(recordingTime)}</span>
+                <span className="text-[11px] sm:text-xs text-gray-400 flex-1 truncate ml-1 font-medium">Ẹ kọ́ ohùn sílẹ̀...</span>
+                <button 
+                  onClick={handleCancelRecording} 
+                  className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer p-1 shrink-0 focus:outline-none"
+                >
+                  <Trash2 size={16} sm={18} />
                 </button>
               </div>
             ) : (
@@ -164,21 +168,20 @@ export default function AgbeVoice({ onBack }) {
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                 placeholder="Ask about crops, rain or fertilizer..."
-                className="w-full bg-transparent p-2 outline-none text-sm dark:text-white"
+                className="w-full bg-transparent p-1.5 sm:p-2 outline-none text-xs sm:text-sm dark:text-white"
               />
             )}
           </div>
 
-          {/* CRITICAL UPDATE: Button switches behavior context dynamically */}
           <button 
             onClick={isRecording || inputText.trim().length > 0 ? handleSendMessage : () => setIsRecording(true)}
-            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-90 shrink-0 ${
+            className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-95 shrink-0 cursor-pointer focus:outline-none ${
               isRecording || inputText.trim().length > 0 
                 ? 'bg-osun-green-mid text-white shadow-osun-green-mid/20' 
                 : 'bg-osun-gold text-osun-green-deep shadow-osun-gold/20'
             }`}
           >
-            {isRecording || inputText.trim().length > 0 ? <Send size={22} /> : <Mic size={22} />}
+            {isRecording || inputText.trim().length > 0 ? <Send size={18} sm={22} /> : <Mic size={18} sm={22} />}
           </button>
         </div>
       </footer>
