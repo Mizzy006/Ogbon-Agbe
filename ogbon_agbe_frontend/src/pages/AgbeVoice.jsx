@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, Send, Volume2, VolumeX, User, ChevronLeft, Trash2 } from 'lucide-react';
+import { agbeVoiceService } from '../services/api'; // Import your live backend voice agent service
 
 export default function AgbeVoice({ onBack }) {
   const [messages, setMessages] = useState([
@@ -13,6 +14,7 @@ export default function AgbeVoice({ onBack }) {
   const [inputText, setInputText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [isWaitingForAi, setIsWaitingForAi] = useState(false); // Controls loading skeleton
   const timerRef = useRef(null);
 
   // Handle WhatsApp-Style Recording Timer
@@ -50,9 +52,8 @@ export default function AgbeVoice({ onBack }) {
     }
 
     window.speechSynthesis.cancel();
-    
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.rate = 0.8; 
+    utterance.rate = 0.85; 
 
     utterance.onend = () => {
       setMessages(prev => prev.map(m => m.id === msgId ? { ...m, isPlaying: false } : m));
@@ -65,12 +66,14 @@ export default function AgbeVoice({ onBack }) {
     window.speechSynthesis.speak(utterance);
   };
 
-  const handleSendMessage = () => {
+  // Action: Submits input directly to Abdullahi's backend routing interface
+  const handleSendMessage = async () => {
     let userText = "";
 
     if (isRecording) {
       userText = `🎤 Voice Note (${formatTime(recordingTime)})`;
       setIsRecording(false);
+      // Future hook: agbeVoiceService.uploadVoiceNote(audioBlob)
     } else if (inputText.trim()) {
       userText = inputText;
       setInputText("");
@@ -78,20 +81,41 @@ export default function AgbeVoice({ onBack }) {
       return;
     }
 
+    // Append user message instantly to screen
     const userMsg = { id: Date.now(), role: 'user', text: userText, isPlaying: false };
+    setMessages(prev => [...prev, userMsg]);
     
-    const mockAiMsg = {
-      id: Date.now() + 1,
-      role: 'ai',
-      text: 'Mo gbọ́ àlàyé rẹ. Fun àìsàn gbegiri (CMD), rí i dájú pé o yọ àwọn ewé tí ó ti bàjẹ́ kúrò lójú ẹsẹ̀.',
-      isPlaying: false
-    };
+    try {
+      setIsWaitingForAi(true);
 
-    setMessages(prev => [...prev, userMsg, mockAiMsg]);
-  };
-
-  const handleCancelRecording = () => {
-    setIsRecording(false);
+      // Map chat messages into a clean history payload for Ibrahim's Gemini system guidelines
+      const chatHistory = messages.map(m => ({
+        role: m.role === 'ai' ? 'model' : 'user',
+        text: m.text
+      }));
+      
+      // Make real HTTP call to Cloud Run
+      const aiResponse = await agbeVoiceService.sendMessage(userText, chatHistory);
+      
+      const responseMsg = {
+        id: Date.now() + 1,
+        role: 'ai',
+        text: aiResponse.text || 'Mo gbọ́ àlàyé rẹ, ṣùgbọ́n àmì ẹ̀rọ mi dín kù díẹ̀.', 
+        isPlaying: false
+      };
+      
+      setMessages(prev => [...prev, responseMsg]);
+    } catch (error) {
+      console.error("API Connection dropped, drawing fallback warning text:", error);
+      setMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        role: 'ai',
+        text: 'Àkókò ti kọjá (Request timed out). Please check your internet connection or backend endpoint parameters.',
+        isPlaying: false
+      }]);
+    } finally {
+      setIsWaitingForAi(false);
+    }
   };
 
   return (
@@ -99,11 +123,7 @@ export default function AgbeVoice({ onBack }) {
       {/* Header Panel */}
       <header className="p-4 sm:p-6 border-b border-gray-100 dark:border-white/5 flex items-center justify-between bg-white dark:bg-osun-card-dark w-full shrink-0">
         <div className="flex items-center gap-3 sm:gap-4">
-          {/* Responsive interaction tracking cursor pointer */}
-          <button 
-            onClick={() => { if (window.speechSynthesis) window.speechSynthesis.cancel(); onBack(); }} 
-            className="text-osun-green-mid cursor-pointer hover:opacity-70 transition-opacity p-1 focus:outline-none"
-          >
+          <button onClick={() => { if (window.speechSynthesis) window.speechSynthesis.cancel(); onBack(); }} className="text-osun-green-mid cursor-pointer hover:opacity-70 transition-opacity p-1 focus:outline-none">
             <ChevronLeft size={24} />
           </button>
           <div>
@@ -112,7 +132,7 @@ export default function AgbeVoice({ onBack }) {
           </div>
         </div>
         <span className="text-[9px] sm:text-[10px] font-mono bg-[#C8860A]/10 text-[#C8860A] px-2.5 sm:px-3 py-1 rounded-full font-bold whitespace-nowrap">
-          AV-03: Chat Playback
+          AV-03: Live Agent
         </span>
       </header>
 
@@ -124,7 +144,6 @@ export default function AgbeVoice({ onBack }) {
               {msg.role === 'ai' ? <Mic size={14} className="text-osun-green-deep" /> : <User size={14} className="text-white" />}
             </div>
 
-            {/* Responsive bubble text boundaries max-w-[85%] on mobile grids */}
             <div className={`max-w-[85%] sm:max-w-[75%] p-3.5 sm:p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-white/5 ${msg.role === 'ai' ? 'bg-white dark:bg-osun-card-dark rounded-tl-none text-gray-800 dark:text-gray-100' : 'bg-osun-green-mid text-white rounded-tr-none'}`}>
               <p className="text-xs sm:text-sm leading-relaxed break-words">{msg.text}</p>
               
@@ -136,12 +155,23 @@ export default function AgbeVoice({ onBack }) {
                   >
                     {msg.isPlaying ? <><VolumeX size={12} /> Dúró (Stop)</> : <><Volume2 size={12} /> Gbọ́ Ohùn (Listen)</>}
                   </button>
-                  <p className="text-[8px] sm:text-[9px] text-gray-400 italic mt-1 font-mono">*Local synthesis preview. Cloud TTS engine integrates next.</p>
                 </div>
               )}
             </div>
           </div>
         ))}
+
+        {/* Live Loading Skeleton Placeholder */}
+        {isWaitingForAi && (
+          <div className="flex gap-2 sm:gap-3 w-full items-center animate-pulse">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#C8860A]/50 flex items-center justify-center shrink-0">
+              <Mic size={14} className="text-osun-green-deep" />
+            </div>
+            <div className="bg-white dark:bg-osun-card-dark p-3 rounded-2xl border border-gray-100 dark:border-white/5">
+              <p className="text-xs text-gray-400 font-mono">Àgbẹ̀ Advisor ń kọ̀wé... (Thinking...)</p>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Input Tray Section */}
@@ -155,33 +185,35 @@ export default function AgbeVoice({ onBack }) {
                 <span className="text-xs sm:text-sm font-mono font-bold text-red-500 shrink-0">{formatTime(recordingTime)}</span>
                 <span className="text-[11px] sm:text-xs text-gray-400 flex-1 truncate ml-1 font-medium">Ẹ kọ́ ohùn sílẹ̀...</span>
                 <button 
-                  onClick={handleCancelRecording} 
+                  onClick={() => setIsRecording(false)} 
                   className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer p-1 shrink-0 focus:outline-none"
                 >
-                  <Trash2 size={16} sm={18} />
+                  <Trash2 size={16} />
                 </button>
               </div>
             ) : (
               <input 
                 type="text" 
                 value={inputText}
+                disabled={isWaitingForAi}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder="Ask about crops, rain or fertilizer..."
-                className="w-full bg-transparent p-1.5 sm:p-2 outline-none text-xs sm:text-sm dark:text-white"
+                placeholder={isWaitingForAi ? "Processing network parameters..." : "Ask about crops, rain or fertilizer..."}
+                className="w-full bg-transparent p-1.5 sm:p-2 outline-none text-xs sm:text-sm dark:text-white disabled:opacity-50"
               />
             )}
           </div>
 
           <button 
             onClick={isRecording || inputText.trim().length > 0 ? handleSendMessage : () => setIsRecording(true)}
-            className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-95 shrink-0 cursor-pointer focus:outline-none ${
+            disabled={isWaitingForAi}
+            className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-95 shrink-0 cursor-pointer focus:outline-none disabled:opacity-40 ${
               isRecording || inputText.trim().length > 0 
                 ? 'bg-osun-green-mid text-white shadow-osun-green-mid/20' 
                 : 'bg-osun-gold text-osun-green-deep shadow-osun-gold/20'
             }`}
           >
-            {isRecording || inputText.trim().length > 0 ? <Send size={18} sm={22} /> : <Mic size={18} sm={22} />}
+            {isRecording || inputText.trim().length > 0 ? <Send size={18} /> : <Mic size={18} />}
           </button>
         </div>
       </footer>

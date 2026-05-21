@@ -1,65 +1,100 @@
 import React, { useState } from 'react';
-import { Save, MapPin, User, ArrowLeft } from 'lucide-react';
+import { User, MapPin, Save, ChevronLeft, CheckCircle } from 'lucide-react';
 
-export default function Profile({ userData, onUpdate, onBack }) {
-  const [profile, setProfile] = useState(userData);
+export default function Profile({ onBack, onUpdate }) {
+  // Initialize state directly from persistent data stores
+  const [profile, setProfile] = useState({
+    farmName: localStorage.getItem('farm_name') || 'Olasunkanmi Farm',
+    lga: localStorage.getItem('farm_lga') || 'Osogbo'
+  });
+  const [showSavedToast, setShowSavedToast] = useState(false);
 
-  const handleSave = () => {
-    // PM Note: This will eventually update the Firebase Firestore record [cite: 22, 66]
-    onUpdate(profile);
-    onBack();
+  const handleSave = (e) => {
+    e.preventDefault();
+    localStorage.setItem('farm_name', profile.farmName);
+    localStorage.setItem('farm_lga', profile.lga);
+    
+    // Bubble updates up to sync top level Sidebar layouts instantly
+    if (onUpdate) onUpdate(profile);
+    
+    setShowSavedToast(true);
+    setTimeout(() => setShowSavedToast(false), 3000);
   };
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
-      <button onClick={onBack} className="flex items-center gap-2 text-osun-green-mid mb-8 hover:opacity-70 transition-opacity font-bold">
-        <ArrowLeft size={20} /> Back to Dashboard
-      </button>
-
-      <header className="mb-10">
-        <h2 className="font-serif text-4xl font-black text-osun-green-deep dark:text-white mb-2">Ètò (Settings)</h2>
-        <p className="text-sm text-gray-500">Update your farm details and preferences</p>
-      </header>
-
-      <div className="space-y-8 bg-white dark:bg-osun-card-dark p-8 rounded-[40px] shadow-sm border border-gray-100 dark:border-white/5">
-        {/* Farm Name Input  */}
-        <div className="space-y-2">
-          <label className="text-xs font-black uppercase text-osun-green-mid tracking-widest">Farm Name</label>
-          <div className="relative">
-            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input 
-              value={profile.farmName}
-              onChange={(e) => setProfile({...profile, farmName: e.target.value})}
-              className="w-full bg-osun-cream dark:bg-osun-bg-dark border border-transparent p-4 pl-12 rounded-2xl focus:border-osun-gold outline-none transition-all dark:text-white"
-            />
+    <div className="min-h-screen bg-[#fdf8f0] dark:bg-[#0f110e] p-4 sm:p-6 md:p-10 font-sans transition-colors duration-300 w-full">
+      <div className="max-w-xl mx-auto space-y-6">
+        
+        {/* Navigation Header */}
+        <header className="flex items-center gap-4">
+          <button onClick={onBack} className="text-[#40916c] cursor-pointer p-1.5 hover:opacity-75 focus:outline-none">
+            <ChevronLeft size={24} />
+          </button>
+          <div>
+            <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#1a3a2a] dark:text-white">Farm Profile</h2>
+            <p className="text-xs text-gray-400">Configure localized workspace identities.</p>
           </div>
-        </div>
+        </header>
 
-        {/* LGA Selection  */}
-        <div className="space-y-2">
-          <label className="text-xs font-black uppercase text-osun-green-mid tracking-widest">Location (LGA in Osun)</label>
-          <div className="relative">
-            <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <select 
-              value={profile.lga}
-              onChange={(e) => setProfile({...profile, lga: e.target.value})}
-              className="w-full bg-osun-cream dark:bg-osun-bg-dark border border-transparent p-4 pl-12 rounded-2xl outline-none appearance-none dark:text-white"
+        {/* Success Alert Toast Notification */}
+        {showSavedToast && (
+          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs rounded-xl flex items-center gap-2 animate-fade-in shadow-xs">
+            <CheckCircle size={16} className="shrink-0" />
+            <p className="font-bold">Ìyípadà ti fìdí múlẹ̀! Profile credentials updated successfully.</p>
+          </div>
+        )}
+
+        {/* Profile Card Interface */}
+        <div className="bg-white dark:bg-[#1a1d1a] border border-gray-200 dark:border-white/5 rounded-2xl p-6 shadow-sm">
+          <form onSubmit={handleSave} className="space-y-5">
+            
+            {/* Visual Profile Avatar Banner */}
+            <div className="flex items-center gap-4 border-b border-gray-50 dark:border-white/5 pb-5">
+              <div className="w-16 h-16 bg-[#40916c]/10 text-[#40916c] rounded-full flex items-center justify-center shadow-inner shrink-0">
+                <User size={32} />
+              </div>
+              <div>
+                <h4 className="font-serif font-black text-lg dark:text-white">{profile.farmName}</h4>
+                <p className="text-xs text-gray-400 font-mono flex items-center gap-1 mt-0.5"><MapPin size={12} /> {profile.lga} Axis</p>
+              </div>
+            </div>
+
+            {/* Input Field: Farm Name */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-[#40916c]">Farm Name</label>
+              <input 
+                type="text"
+                required
+                value={profile.farmName}
+                onChange={(e) => setProfile({ ...profile, farmName: e.target.value })}
+                className="w-full bg-[#fdf8f0] dark:bg-[#0f110e] border border-gray-200 dark:border-white/10 p-3.5 sm:p-4 rounded-xl focus:ring-2 ring-[#e9c46a] outline-none dark:text-white text-sm"
+              />
+            </div>
+
+            {/* Selection Block: LGA Location Context */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-[#40916c]">Location Area (LGA)</label>
+              <select 
+                value={profile.lga}
+                onChange={(e) => setProfile({ ...profile, lga: e.target.value })}
+                className="w-full bg-[#fdf8f0] dark:bg-[#0f110e] border border-gray-200 dark:border-white/10 p-3.5 sm:p-4 rounded-xl dark:text-white appearance-none outline-none focus:ring-2 ring-[#e9c46a] text-sm cursor-pointer"
+              >
+                <option value="Osogbo">Osogbo</option>
+                <option value="Ife Central">Ife Central</option>
+                <option value="Ilesa East">Ilesa East</option>
+              </select>
+            </div>
+
+            {/* Trigger Button */}
+            <button 
+              type="submit"
+              className="w-full bg-[#40916c] hover:bg-[#2d6a4f] text-white py-3.5 sm:py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer focus:outline-none mt-4"
             >
-              <option>Osogbo</option>
-              <option>Ife Central</option>
-              <option>Ilesa East</option>
-              <option>Ede North</option>
-              <option>Iwo</option>
-            </select>
-          </div>
+              <Save size={18} /> Save Workspace Changes
+            </button>
+          </form>
         </div>
 
-        <button 
-          onClick={handleSave}
-          className="w-full bg-osun-green-mid text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-xl shadow-osun-green-mid/20 hover:scale-[1.02] active:scale-95 transition-all"
-        >
-          <Save size={20} /> Save Changes
-        </button>
       </div>
     </div>
   );

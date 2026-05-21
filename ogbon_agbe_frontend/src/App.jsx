@@ -43,9 +43,20 @@ export default function App() {
     }
   };
 
-  if (currentView === 'splash') return <Splash onEnter={() => setCurrentView('auth')} />;
-  if (currentView === 'auth') return <Auth onLoginSuccess={(data) => { setUserData(data); setCurrentView('dashboard'); }} />;
-
+// Quick check of your App.jsx view router routing mechanism:
+if (currentView === 'splash') {
+  return <Splash onEnter={() => setCurrentView('auth')} />;
+}// Change this line inside your App.jsx component's switch renderer:
+if (currentView === 'auth') {
+  return (
+    <Auth 
+      onLoginSuccess={(data) => { 
+        setUserData({ farmName: data.farmName, lga: data.lga }); 
+        setCurrentView('dashboard'); 
+      }} 
+    />
+  );
+}
   return (
     <div className="flex min-h-screen bg-[#fdf8f0] dark:bg-[#0f110e] transition-colors duration-300 max-w-full overflow-x-hidden">
       

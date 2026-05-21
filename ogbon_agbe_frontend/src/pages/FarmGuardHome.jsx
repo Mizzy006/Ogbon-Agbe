@@ -1,210 +1,138 @@
-import React, { useState, useRef } from 'react';
-import { Camera, RefreshCw, ChevronLeft, CornerDownRight, HeartPulse, Volume2, VolumeX } from 'lucide-react';
+import React, { useState } from 'react';
+import { Camera, ShieldCheck, RefreshCw, AlertCircle, ChevronLeft } from 'lucide-react';
+import { farmGuardService } from '../services/api';
 
 export default function FarmGuardHome({ onBack }) {
-  const [image, setImage] = useState(null);
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanResult, setScanResult] = useState(null);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const fileInputRef = useRef();
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [apiError, setApiError] = useState(null);
 
-  const handleCapture = (e) => {
+  // Capture file from device file picker or viewport capture stream
+  const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setImage(URL.createObjectURL(file));
-      startScan();
+      setImageFile(file);
+      setSelectedImage(URL.createObjectURL(file));
+      setAnalysisResult(null);
+      setApiError(null);
     }
   };
 
-  const startScan = () => {
-    setIsScanning(true);
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel(); // Stop any leftover audio
-      setIsSpeaking(false);
+  // Asynchronously submit payload directly to Abdullahi's live Cloud Run platform instance
+  const triggerCloudAnalysis = async () => {
+    if (!imageFile) return;
+
+    try {
+      setIsAnalyzing(true);
+      setApiError(null);
+      
+      const response = await farmGuardService.analyzeCropDisease(imageFile);
+      
+      if (response.success) {
+        setAnalysisResult(response.data); // Stores: diagnosis, confidence, treatment array
+      }
+    } catch (err) {
+      console.error("Cloud engine error:", err);
+      setApiError(err.response?.data?.detail || "Authentication token invalid or backend timeout.");
+    } finally {
+      setIsAnalyzing(false);
     }
-    
-    setTimeout(() => {
-      setIsScanning(false);
-      setScanResult({
-        diseaseYoruba: "Àìsàn Èso Gbegiri (CMD)",
-        diseaseEnglish: "Cassava Mosaic Disease",
-        confidence: 94,
-        status: "Severe Threat",
-        cause: "Whiteflies (Amuwọle) transferring geminiviruses.",
-        treatmentPlan: [
-          "Fà á tu kúrò lójú ẹsẹ̀ kó o sì dáná sun ún.",
-          "Lo irúgbìn tí kò le tètè lárùn fún ìgbà tókàn.",
-          "Ṣàkóso àwọn kòkòrò funfun tí ń tàn án kálẹ̀."
-        ],
-        // The combined raw text optimized for the audio reader
-        audioScript: "Àìsàn Èso Gbegiri. Ìtọ́jú kìíní: Fà á tu kúrò lójú ẹsẹ̀ kó o sì dáná sun ún. Ìtọ́jú kejì: Lo irúgbìn tí kò le tètè lárùn fún ìgbà tókàn. Ìtọ́jú kẹta: Ṣàkóso àwọn kòkòrò funfun tí ń tàn án kálẹ̀."
-      });
-    }, 3000);
-  };
-
-  // Web Speech API Trigger for Local Testing
-  const handleReadAloud = () => {
-    if (!window.speechSynthesis) {
-      alert("Your browser does not support voice text-to-speech features.");
-      return;
-    }
-
-    if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-      return;
-    }
-
-    const utterance = new SpeechSynthesisUtterance(scanResult.audioScript);
-    
-    // Try to locate an African or Nigerian English/Yoruba accent voice profile if available in the browser
-    const voices = window.speechSynthesis.getVoices();
-    const localVoice = voices.find(voice => voice.lang.includes('NG') || voice.lang.includes('yo'));
-    if (localVoice) utterance.voice = localVoice;
-
-    utterance.rate = 0.85; // Slow down slightly for clarity in outdoor conditions
-
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
-    setIsSpeaking(true);
-    window.speechSynthesis.speak(utterance);
-  };
-
-  const handleCloseAndClean = () => {
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
-    setIsSpeaking(false);
-    setImage(null);
-    setScanResult(null);
   };
 
   return (
-    <div className="min-h-screen bg-osun-cream dark:bg-osun-bg-dark p-6 font-sans transition-colors duration-300">
-      <div className="max-w-xl mx-auto flex items-center justify-between mb-6">
-        <button 
-          onClick={() => {
-            if (window.speechSynthesis) window.speechSynthesis.cancel();
-            onBack();
-          }} 
-          className="flex items-center gap-1 text-osun-green-mid font-bold text-sm"
-        >
-          <ChevronLeft size={18} /> Ilé
-        </button>
-        <span className="text-xs font-mono font-bold bg-[#2D7D46]/10 text-[#2D7D46] px-3 py-1 rounded-full">
-          FG-03: Live Diagnosis
-        </span>
-      </div>
+    <div className="min-h-screen bg-[#fdf8f0] dark:bg-[#0f110e] p-4 sm:p-6 md:p-10 font-sans transition-colors duration-300 w-full">
+      <div className="max-w-3xl mx-auto space-y-6">
+        
+        {/* Navigation Headbar */}
+        <header className="flex items-center gap-4 mb-4">
+          <button onClick={onBack} className="text-[#40916c] cursor-pointer p-1.5 hover:opacity-75 focus:outline-none">
+            <ChevronLeft size={24} />
+          </button>
+          <div>
+            <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#1a3a2a] dark:text-white">FarmGuard Diagnosis</h2>
+            <p className="text-xs text-gray-400">Scan foliage for real-time machine learning telemetry.</p>
+          </div>
+        </header>
 
-      <div className="max-w-xl mx-auto">
-        {!image ? (
-          <>
-            <header className="mb-8">
-              <h2 className="font-serif text-3xl font-black text-osun-green-deep dark:text-white">FarmGuard</h2>
-              <p className="text-xs text-gray-500 font-medium italic mt-1">Ààbò Oko · Crop Disease Intelligence</p>
-            </header>
-
-            <div 
-              onClick={() => fileInputRef.current.click()}
-              className="aspect-[4/5] bg-white dark:bg-osun-card-dark border-2 border-dashed border-osun-green-mid/20 rounded-[32px] flex flex-col items-center justify-center gap-4 text-center p-8 cursor-pointer shadow-sm hover:border-osun-green-bright transition-all"
-            >
-              <div className="p-5 bg-[#2D7D46]/10 text-[#2D7D46] rounded-full">
-                <Camera size={40} />
-              </div>
-              <div>
-                <p className="font-bold text-osun-green-deep dark:text-white text-lg">Scan Sick Crop</p>
-                <p className="text-xs text-gray-400 mt-2 max-w-[200px] mx-auto">
-                  Snap leaf directly in daylight for highly localized Yoruba diagnostics.
-                </p>
-              </div>
-              <input type="file" accept="image/*" capture="environment" hidden ref={fileInputRef} onChange={handleCapture} />
-            </div>
-          </>
-        ) : (
-          <div className="space-y-6">
-            <div className="relative aspect-square rounded-[32px] overflow-hidden shadow-xl border border-gray-100 dark:border-white/5">
-              <img src={image} alt="Crop status" className="w-full h-full object-cover" />
-              
-              {isScanning && (
-                <div className="absolute inset-0 bg-osun-green-deep/90 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center text-white">
-                  <RefreshCw size={44} className="text-osun-gold animate-spin mb-4" />
-                  <h3 className="text-xl font-bold font-serif tracking-wide">Ṣíṣàyẹ̀wò Irúgbìn...</h3>
-                  <p className="text-osun-gold text-xs mt-1 max-w-[200px]">Gemini 1.5 Pro is running deep vision diagnostics.</p>
-                </div>
-              )}
-            </div>
-
-            {scanResult && !isScanning && (
-              <div className="bg-white dark:bg-osun-card-dark p-6 rounded-[32px] shadow-lg border border-gray-100 dark:border-white/5 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                
-                <div className="flex items-start justify-between border-b border-gray-100 dark:border-white/5 pb-4">
-                  <div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-red-500 bg-red-500/10 px-2 py-0.5 rounded">
-                      {scanResult.status}
-                    </span>
-                    <h4 className="text-2xl font-serif font-bold text-osun-green-deep dark:text-white mt-1">
-                      {scanResult.diseaseYoruba}
-                    </h4>
-                    <p className="text-xs text-gray-400 font-medium italic">{scanResult.diseaseEnglish}</p>
-                  </div>
-                  
-                  <div className="flex flex-col items-center bg-osun-cream dark:bg-osun-bg-dark p-3 rounded-2xl border border-gray-100 dark:border-white/5">
-                    <span className="text-lg font-mono font-black text-[#2D7D46]">{scanResult.confidence}%</span>
-                    <span className="text-[9px] uppercase tracking-wider text-gray-400 font-bold">Match</span>
-                  </div>
-                </div>
-
-                {/* ACCESSIBILITY FEATURE: Read Aloud Trigger Card */}
-                <div className="bg-osun-gold/10 border border-osun-gold/20 rounded-2xl p-4 flex items-center justify-between">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-bold text-osun-green-deep dark:text-osun-gold">Kà á jáde (Audio Reader)</span>
-                    <span className="text-[11px] text-gray-500 dark:text-gray-400">Listen to the disease diagnosis and treatments</span>
-                  </div>
-                  <button 
-                    onClick={handleReadAloud}
-                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-                      isSpeaking ? 'bg-red-500 text-white animate-pulse' : 'bg-osun-gold text-osun-green-deep'
-                    } shadow-md`}
-                  >
-                    {isSpeaking ? <VolumeX size={20} /> : <Volume2 size={20} />}
-                  </button>
-                </div>
-
-                <div className="text-sm space-y-1">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Ọkùnfà (Cause)</p>
-                  <p className="dark:text-gray-200 font-medium">{scanResult.cause}</p>
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                    <HeartPulse size={14} className="text-[#2D7D46]" /> Ìtọ́jú & Ìgbésẹ̀ (Treatment Plan)
-                  </p>
-                  
-                  <div className="space-y-2">
-                    {scanResult.treatmentPlan.map((step, idx) => (
-                      <div key={idx} className="p-3 bg-osun-cream dark:bg-osun-bg-dark rounded-xl flex items-start gap-3 border border-gray-100 dark:border-white/5">
-                        <CornerDownRight size={16} className="text-osun-gold shrink-0 mt-0.5" />
-                        <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
-                          {step}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <button 
-                    onClick={handleCloseAndClean} 
-                    className="w-full bg-osun-green-mid hover:bg-[#2D7D46] text-white py-3.5 rounded-xl text-sm font-bold active:scale-95 transition-all shadow-md"
-                  >
-                    Scan Another Leaf
-                  </button>
-                </div>
+        {/* Main Interaction Layout Box */}
+        <div className="bg-white dark:bg-[#1a1d1a] border border-gray-200 dark:border-white/5 rounded-2xl p-6 shadow-sm space-y-6">
+          
+          {/* File Picker Display Area */}
+          <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-white/10 rounded-xl p-8 bg-[#fdf8f0]/30 dark:bg-transparent text-center relative overflow-hidden min-h-[220px]">
+            {selectedImage ? (
+              <img src={selectedImage} alt="Crop file source" className="max-h-64 object-contain rounded-lg" />
+            ) : (
+              <div className="space-y-2 flex flex-col items-center">
+                <Camera size={44} className="text-[#40916c] animate-bounce" />
+                <p className="text-sm font-bold dark:text-white">Upload leaf or crop anomaly snapshot</p>
+                <p className="text-xs text-gray-400">Supports PNG, JPG up to 10MB</p>
               </div>
             )}
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleImageChange}
+              className="absolute inset-0 opacity-0 cursor-pointer" 
+            />
           </div>
-        )}
+
+          {/* Trigger Request Actions Button group */}
+          {imageFile && (
+            <button
+              onClick={triggerCloudAnalysis}
+              disabled={isAnalyzing}
+              className="w-full bg-[#40916c] hover:bg-[#2d6a4f] text-white py-3 rounded-xl font-bold text-sm transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer focus:outline-none disabled:opacity-50"
+            >
+              {isAnalyzing ? (
+                <><RefreshCw size={16} className="animate-spin" /> Querying Ibrahim's Engine...</>
+              ) : (
+                <><ShieldCheck size={18} /> Execute Cloud Analysis</>
+              )}
+            </button>
+          )}
+
+          {/* Error Visual Blocks */}
+          {apiError && (
+            <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-500 text-xs rounded-xl flex items-start gap-2 animate-shake">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold">Execution Blocked: </span>
+                <span>{apiError}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Active Diagnostic JSON Mappings Output */}
+          {analysisResult && (
+            <div className="border-t border-gray-100 dark:border-white/5 pt-6 space-y-4 animate-fade-in">
+              <div className="flex justify-between items-center bg-[#fdf8f0] dark:bg-[#0f110e] p-4 rounded-xl border border-gray-100 dark:border-white/5">
+                <div>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Detected Condition</p>
+                  <h4 className="text-lg font-bold text-[#1a3a2a] dark:text-white font-serif mt-0.5">{analysisResult.diagnosis}</h4>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Confidence Score</p>
+                  <span className="text-sm font-mono font-black text-[#40916c]">{(analysisResult.confidence * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h5 className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">Recommended Treatment Actions</h5>
+                <ul className="space-y-2">
+                  {analysisResult.treatment?.map((step, index) => (
+                    <li key={index} className="bg-white dark:bg-[#1a1d1a] border border-gray-100 dark:border-white/5 p-3 rounded-xl text-xs flex items-center gap-3 shadow-2xs text-gray-700 dark:text-gray-300">
+                      <span className="w-5 h-5 rounded-full bg-[#40916c]/10 text-[#40916c] font-bold font-mono flex items-center justify-center text-[10px] shrink-0">{index + 1}</span>
+                      <span className="break-words flex-1 font-medium">{step}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   );
